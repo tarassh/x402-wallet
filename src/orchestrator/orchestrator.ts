@@ -103,7 +103,9 @@ export class PaymentOrchestrator {
     const payload = buildPaymentPayload(accept, typedData.message, signature);
     const header = encodePaymentHeader(payload);
 
-    const retryHeaders = { ...(request.headers ?? {}), "X-PAYMENT": header };
+    // x402 v2 canonical header name is PAYMENT-SIGNATURE. Reference:
+    // https://github.com/coinbase/x402/blob/main/typescript/packages/core/src/http/x402HTTPClient.ts
+    const retryHeaders = { ...(request.headers ?? {}), "PAYMENT-SIGNATURE": header };
     const retried = await this.deps.transport({ ...request, headers: retryHeaders });
 
     if (retried.status >= 200 && retried.status < 300) {

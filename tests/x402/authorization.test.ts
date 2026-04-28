@@ -98,7 +98,7 @@ describe("generateNonce", () => {
 });
 
 describe("encodePaymentHeader / buildPaymentPayload", () => {
-  it("round-trips to base64 JSON", () => {
+  it("round-trips to base64 JSON with accepted + payload nesting", () => {
     const payload = buildPaymentPayload(
       baseAccept,
       {
@@ -114,10 +114,20 @@ describe("encodePaymentHeader / buildPaymentPayload", () => {
     const header = encodePaymentHeader(payload);
     const decoded = JSON.parse(Buffer.from(header, "base64").toString("utf8"));
     expect(decoded.x402Version).toBe(2);
-    expect(decoded.scheme).toBe("exact");
-    expect(decoded.network).toBe("eip155:8453");
+    // accepted should carry the full PaymentRequirements copy from the challenge
+    expect(decoded.accepted.scheme).toBe("exact");
+    expect(decoded.accepted.network).toBe("eip155:8453");
+    expect(decoded.accepted.amount).toBe("20000");
+    expect(decoded.accepted.asset).toBe(baseAccept.asset);
+    expect(decoded.accepted.payTo).toBe(baseAccept.payTo);
+    expect(decoded.accepted.maxTimeoutSeconds).toBe(300);
+    expect(decoded.accepted.extra).toEqual({ name: "USD Coin", version: "2" });
+    // payload carries the signed authorization
     expect(decoded.payload.authorization.value).toBe("20000");
     expect(decoded.payload.authorization.from).toBe("0x0000000000000000000000000000000000000111");
+    // legacy flat fields must not leak
+    expect(decoded.scheme).toBeUndefined();
+    expect(decoded.network).toBeUndefined();
   });
 
   it("stringifies bigints as decimal strings", () => {

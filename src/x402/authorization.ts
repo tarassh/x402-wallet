@@ -76,10 +76,28 @@ function defaultRandom(): Uint8Array {
   return b;
 }
 
+/**
+ * PaymentPayload shape per Coinbase's x402 v2 spec:
+ *   https://github.com/coinbase/x402/blob/main/specs/schemes/exact/scheme_exact_evm.md
+ * and `typescript/packages/core/src/types/payments.ts::PaymentPayload`.
+ *
+ * `accepted` carries the full PaymentRequirements from the 402 challenge; the
+ * facilitator uses it to cross-check against its own copy when settling.
+ */
 export interface X402PaymentPayload {
   x402Version: 2;
-  scheme: "exact";
-  network: string;
+  accepted: {
+    scheme: "exact";
+    network: string;
+    amount: string;
+    asset: Address;
+    payTo: Address;
+    maxTimeoutSeconds: number;
+    extra: {
+      name: string;
+      version: string;
+    };
+  };
   payload: {
     signature: Hex;
     authorization: {
@@ -104,8 +122,15 @@ export function buildPaymentPayload(
 ): X402PaymentPayload {
   return {
     x402Version: 2,
-    scheme: "exact",
-    network: accept.network,
+    accepted: {
+      scheme: "exact",
+      network: accept.network,
+      amount: accept.amount.toString(),
+      asset: accept.asset,
+      payTo: accept.payTo,
+      maxTimeoutSeconds: accept.maxTimeoutSeconds,
+      extra: { name: accept.extra.name, version: accept.extra.version },
+    },
     payload: {
       signature,
       authorization: {

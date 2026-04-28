@@ -145,7 +145,7 @@ describe("MCP server", () => {
     expect(parsed.amount).toBe("20000");
     expect(parsed.signerLabel).toBe("keychain:main");
     expect(stub.calls).toHaveLength(2);
-    expect(stub.calls[1]!.headers?.["X-PAYMENT"]).toBeDefined();
+    expect(stub.calls[1]!.headers?.["PAYMENT-SIGNATURE"]).toBeDefined();
   });
 
   it("x402_fetch reports rejected_by_user when approver denies", async () => {

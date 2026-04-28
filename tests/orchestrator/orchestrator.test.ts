@@ -122,7 +122,7 @@ describe("PaymentOrchestrator", () => {
     expect(outcome.amount).toBe(20000n);
 
     expect(t.calls).toHaveLength(2);
-    expect(t.calls[1]!.headers?.["X-PAYMENT"]).toBeDefined();
+    expect(t.calls[1]!.headers?.["PAYMENT-SIGNATURE"]).toBeDefined();
 
     expect(signer.signCallCount).toBe(1);
     expect(audit.entries).toHaveLength(1);
@@ -203,7 +203,7 @@ describe("PaymentOrchestrator", () => {
     expect(audit.entries[0]!.errorMessage).toContain("500");
   });
 
-  it("attaches X-PAYMENT to retry but preserves existing headers", async () => {
+  it("attaches PAYMENT-SIGNATURE to retry but preserves existing headers", async () => {
     const t = new RecordingTransport([make402(), make200()]);
     const orch = buildOrch({ transport: t.transport });
     await orch.fetch({
@@ -211,13 +211,13 @@ describe("PaymentOrchestrator", () => {
       headers: { Accept: "application/json" },
     });
     expect(t.calls[1]!.headers?.Accept).toBe("application/json");
-    expect(t.calls[1]!.headers?.["X-PAYMENT"]).toBeDefined();
-    // X-PAYMENT base64 decodes to a JSON object with our scheme/network
-    const xPayment = t.calls[1]!.headers!["X-PAYMENT"]!;
-    const decoded = JSON.parse(Buffer.from(xPayment, "base64").toString("utf8"));
+    expect(t.calls[1]!.headers?.["PAYMENT-SIGNATURE"]).toBeDefined();
+    // PAYMENT-SIGNATURE base64 decodes to a JSON object with accepted + payload
+    const header = t.calls[1]!.headers!["PAYMENT-SIGNATURE"]!;
+    const decoded = JSON.parse(Buffer.from(header, "base64").toString("utf8"));
     expect(decoded.x402Version).toBe(2);
-    expect(decoded.scheme).toBe("exact");
-    expect(decoded.network).toBe("eip155:8453");
+    expect(decoded.accepted.scheme).toBe("exact");
+    expect(decoded.accepted.network).toBe("eip155:8453");
     expect(decoded.payload.authorization.nonce).toBe(FIXED_NONCE);
   });
 
@@ -225,7 +225,7 @@ describe("PaymentOrchestrator", () => {
     const t = new RecordingTransport([make402(), make200()]);
     const orch = buildOrch({ transport: t.transport });
     await orch.fetch({ url: "https://transit402.dev/x" });
-    const decoded = JSON.parse(Buffer.from(t.calls[1]!.headers!["X-PAYMENT"]!, "base64").toString("utf8"));
+    const decoded = JSON.parse(Buffer.from(t.calls[1]!.headers!["PAYMENT-SIGNATURE"]!, "base64").toString("utf8"));
     expect(decoded.payload.authorization.validAfter).toBe(String(FIXED_NOW - 60));
     expect(decoded.payload.authorization.validBefore).toBe(String(FIXED_NOW + 300));
   });
