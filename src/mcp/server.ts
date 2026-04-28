@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { promises as fs } from "fs";
 import * as path from "path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { buildMcpServer } from "./build.ts";
@@ -15,6 +16,7 @@ async function main(): Promise<void> {
     config.dbPath ??
     process.env.X402_WALLET_DB ??
     path.join(process.env.HOME ?? "", ".x402-wallet", "payments.db");
+  await fs.mkdir(path.dirname(dbPath), { recursive: true });
 
   const { runtime, signers } = buildRuntimeFromConfig({
     config,
