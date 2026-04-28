@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import type { ApprovalRequest, ApprovalResult, Approver } from "./types.ts";
 import { APPROVED, deny } from "./types.ts";
-import { summarizeForPrompt } from "./format.ts";
+import { buildApprovalView, summarizeForPrompt } from "./format.ts";
 
 export interface ExecApproverOptions {
   binary: string;
@@ -80,6 +80,7 @@ export class ExecApprover implements Approver {
 }
 
 function serializeRequest(r: ApprovalRequest): Record<string, unknown> {
+  const view = buildApprovalView(r);
   return {
     origin: r.origin,
     url: r.url,
@@ -94,5 +95,6 @@ function serializeRequest(r: ApprovalRequest): Record<string, unknown> {
     resource: r.resource,
     description: r.description,
     summary: summarizeForPrompt(r),
+    view,
   };
 }

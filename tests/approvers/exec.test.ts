@@ -70,6 +70,18 @@ describe("ExecApprover", () => {
     expect(payload.summary).toContain("$0.02 USD Coin");
   });
 
+  it("includes a structured view object for rich UIs", async () => {
+    const fake = new FakeSpawn().queue({ exitCode: 0 });
+    const a = new ExecApprover({ binary: "/bin/approver" }, fake.spawner);
+    await a.approve(req);
+    const payload = JSON.parse(fake.invocations[0]!.stdin);
+    expect(payload.view).toBeDefined();
+    expect(payload.view.amount).toBe("$0.02 USD Coin");
+    expect(payload.view.chainName).toBe("Base");
+    expect(payload.view.hostname).toBe("transit402.dev");
+    expect(payload.view.purpose).toBe("Nearby subway stations");
+  });
+
   it("does not write stdin when passRequestOnStdin is false", async () => {
     const fake = new FakeSpawn().queue({ exitCode: 0 });
     const a = new ExecApprover({ binary: "/bin/approver", passRequestOnStdin: false }, fake.spawner);

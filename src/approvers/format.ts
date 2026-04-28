@@ -1,3 +1,4 @@
+import { chainSpec } from "../chain/usdc.ts";
 import type { ApprovalRequest } from "./types.ts";
 
 export function formatUsdAtomic(amount: bigint, decimals: number): string {
@@ -15,17 +16,47 @@ export function formatAmount(request: ApprovalRequest): string {
   return `$${formatUsdAtomic(request.amount, 6)} ${request.assetName}`;
 }
 
+export function formatChainName(chainId: number, fallback: string): string {
+  return chainSpec(chainId)?.name ?? fallback;
+}
+
+export function approvalHostname(request: ApprovalRequest): string {
+  try {
+    return new URL(request.origin).hostname;
+  } catch {
+    return request.origin;
+  }
+}
+
+export interface ApprovalView {
+  amount: string;
+  chainName: string;
+  hostname: string;
+  purpose?: string;
+  payTo: string;
+  signerLabel: string;
+}
+
+export function buildApprovalView(request: ApprovalRequest): ApprovalView {
+  const view: ApprovalView = {
+    amount: formatAmount(request),
+    chainName: formatChainName(request.chainId, request.network),
+    hostname: approvalHostname(request),
+    payTo: request.payTo,
+    signerLabel: request.signerLabel,
+  };
+  const purpose = request.description?.trim();
+  if (purpose) view.purpose = truncate(purpose, 160);
+  return view;
+}
+
 export function summarizeForPrompt(request: ApprovalRequest): string {
+  const v = buildApprovalView(request);
   const lines = [
-    `Approve x402 payment?`,
-    ``,
-    `Amount: ${formatAmount(request)}`,
-    `Network: ${request.network} (chainId ${request.chainId})`,
-    `URL: ${truncate(request.url, 80)}`,
-    `To: ${request.payTo}`,
-    `Signer: ${request.signerLabel}`,
+    `Pay ${v.amount} on ${v.chainName}`,
+    `to ${v.hostname}`,
   ];
-  if (request.description) lines.push(`Purpose: ${truncate(request.description, 120)}`);
+  if (v.purpose) lines.push(`"${v.purpose}"`);
   return lines.join("\n");
 }
 

@@ -41,25 +41,66 @@ describe("formatAmount", () => {
 });
 
 describe("summarizeForPrompt", () => {
-  it("includes the key fields", () => {
+  it("renders the amount, chain pretty-name, and hostname on three lines", () => {
     const s = summarizeForPrompt(req());
     expect(s).toContain("$0.02 USD Coin");
-    expect(s).toContain("eip155:8453");
-    expect(s).toContain("transit402.dev");
-    expect(s).toContain("0x687E3217668DDe7c32478A3F2613750c8Bd505E9");
-    expect(s).toContain("keychain:main");
+    expect(s).toContain("on Base");
+    expect(s).toContain("to transit402.dev");
+    expect(s.split("\n")).toHaveLength(2);
   });
 
-  it("adds purpose line when description present", () => {
+  it("omits chainId and eip155: prefix for readability", () => {
+    const s = summarizeForPrompt(req());
+    expect(s).not.toContain("eip155:");
+    expect(s).not.toContain("8453");
+  });
+
+  it("omits full recipient address and signer label from the prompt", () => {
+    const s = summarizeForPrompt(req());
+    expect(s).not.toContain("0x687E3217668DDe7c32478A3F2613750c8Bd505E9");
+    expect(s).not.toContain("keychain:main");
+  });
+
+  it("adds a quoted purpose line when description present", () => {
     const s = summarizeForPrompt(req({ description: "Nearby subway stations" }));
-    expect(s).toContain("Purpose: Nearby subway stations");
+    expect(s).toContain('"Nearby subway stations"');
+    expect(s.split("\n")).toHaveLength(3);
   });
 
-  it("truncates absurdly long URLs", () => {
-    const longUrl = "https://example.test/" + "a".repeat(200);
-    const s = summarizeForPrompt(req({ url: longUrl }));
-    const urlLine = s.split("\n").find((l) => l.startsWith("URL:"))!;
-    expect(urlLine.length).toBeLessThan(100);
-    expect(urlLine).toContain("…");
+  it("falls back to eip155 network name for unknown chain ids", () => {
+    const s = summarizeForPrompt(req({ chainId: 424242, network: "eip155:424242" }));
+    expect(s).toContain("on eip155:424242");
+  });
+});
+
+describe("buildApprovalView", () => {
+  it("builds a structured view with chain pretty-name and hostname", async () => {
+    const { buildApprovalView } = await import("../../src/approvers/format.ts");
+    const v = buildApprovalView(req({ description: "Nearby subway stations" }));
+    expect(v.amount).toBe("$0.02 USD Coin");
+    expect(v.chainName).toBe("Base");
+    expect(v.hostname).toBe("transit402.dev");
+    expect(v.purpose).toBe("Nearby subway stations");
+    expect(v.payTo).toBe("0x687E3217668DDe7c32478A3F2613750c8Bd505E9");
+    expect(v.signerLabel).toBe("keychain:main");
+  });
+
+  it("omits purpose when description is empty or missing", async () => {
+    const { buildApprovalView } = await import("../../src/approvers/format.ts");
+    expect(buildApprovalView(req()).purpose).toBeUndefined();
+    expect(buildApprovalView(req({ description: "   " })).purpose).toBeUndefined();
+  });
+
+  it("truncates very long purpose text", async () => {
+    const { buildApprovalView } = await import("../../src/approvers/format.ts");
+    const v = buildApprovalView(req({ description: "x".repeat(300) }));
+    expect(v.purpose!.length).toBeLessThanOrEqual(161);
+    expect(v.purpose!.endsWith("…")).toBe(true);
+  });
+
+  it("falls back to raw origin string if it isn't a URL", async () => {
+    const { buildApprovalView } = await import("../../src/approvers/format.ts");
+    const v = buildApprovalView(req({ origin: "not-a-url" }));
+    expect(v.hostname).toBe("not-a-url");
   });
 });
