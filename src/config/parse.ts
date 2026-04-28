@@ -86,17 +86,39 @@ function parseApprover(input: unknown): ApproverConfig {
         ...(typeof o.title === "string" ? { title: o.title } : {}),
         ...(typeof o.timeoutMs === "number" ? { timeoutMs: o.timeoutMs } : {}),
       };
+    case "touchid":
+      return {
+        kind: "touchid",
+        ...(typeof o.binary === "string" ? { binary: o.binary } : {}),
+        ...(typeof o.timeoutMs === "number" ? { timeoutMs: o.timeoutMs } : {}),
+      };
     case "exec": {
       const binary = requireString(o.binary, "config.approver.binary");
       const out: ApproverConfig = { kind: "exec", binary };
       if (Array.isArray(o.args)) out.args = requireStringArray(o.args, "config.approver.args");
       if (typeof o.timeoutMs === "number") out.timeoutMs = o.timeoutMs;
       if (typeof o.passRequestOnStdin === "boolean") out.passRequestOnStdin = o.passRequestOnStdin;
+      if (o.codeToReason !== undefined) out.codeToReason = parseCodeToReason(o.codeToReason);
       return out;
     }
     default:
       throw new ConfigError(`Unknown approver kind: ${kind}`);
   }
+}
+
+function parseCodeToReason(input: unknown): Record<number, string> {
+  const o = requireObject(input, "config.approver.codeToReason");
+  const out: Record<number, string> = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (!/^-?[0-9]+$/.test(k)) {
+      throw new ConfigError(`config.approver.codeToReason key "${k}" is not an integer`);
+    }
+    if (typeof v !== "string" || v.length === 0) {
+      throw new ConfigError(`config.approver.codeToReason["${k}"] must be a non-empty string`);
+    }
+    out[Number(k)] = v;
+  }
+  return out;
 }
 
 function requireObject(v: unknown, field: string): Record<string, unknown> {

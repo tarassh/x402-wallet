@@ -77,6 +77,33 @@ describe("ExecApprover", () => {
     expect(fake.invocations[0]!.stdin).toBe("");
   });
 
+  it("maps known non-zero codes via codeToReason", async () => {
+    const fake = new FakeSpawn().queue({ exitCode: 10 });
+    const a = new ExecApprover(
+      {
+        binary: "/bin/approver",
+        codeToReason: { 10: "User cancelled", 11: "Biometry unavailable" },
+      },
+      fake.spawner,
+    );
+    const r = await a.approve(req);
+    expect(r.approved).toBe(false);
+    if (r.approved) throw new Error("unreachable");
+    expect(r.reason).toBe("User cancelled");
+  });
+
+  it("falls back to generic reason for unmapped exit codes", async () => {
+    const fake = new FakeSpawn().queue({ exitCode: 7 });
+    const a = new ExecApprover(
+      { binary: "/bin/approver", codeToReason: { 10: "cancelled" } },
+      fake.spawner,
+    );
+    const r = await a.approve(req);
+    expect(r.approved).toBe(false);
+    if (r.approved) throw new Error("unreachable");
+    expect(r.reason).toBe("Approver exited with code 7");
+  });
+
   it("times out and denies when child hangs past timeoutMs", async () => {
     const fake = new FakeSpawn().queue({ delayMs: 1000 });
     const a = new ExecApprover({ binary: "/bin/approver", timeoutMs: 10 }, fake.spawner);

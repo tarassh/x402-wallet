@@ -1,6 +1,7 @@
 import type { Approver } from "../approvers/types.ts";
 import { ExecApprover } from "../approvers/exec.ts";
 import { OsascriptApprover } from "../approvers/osascript.ts";
+import { createTouchIdApprover } from "../approvers/touchid.ts";
 import { SqliteAuditLog } from "../audit/sqlite.ts";
 import type { SecretStore } from "../signers/secret-store.ts";
 import { KeychainSigner } from "../signers/keychain.ts";
@@ -92,16 +93,24 @@ export function approverFromConfig(config: WalletConfig["approver"]): Approver |
     if (config.timeoutMs !== undefined) opts.timeoutMs = config.timeoutMs;
     return new OsascriptApprover(opts);
   }
+  if (config.kind === "touchid") {
+    const opts: { binary?: string; timeoutMs?: number } = {};
+    if (config.binary !== undefined) opts.binary = config.binary;
+    if (config.timeoutMs !== undefined) opts.timeoutMs = config.timeoutMs;
+    return createTouchIdApprover(opts);
+  }
   if (config.kind === "exec") {
     const opts: {
       binary: string;
       args?: readonly string[];
       timeoutMs?: number;
       passRequestOnStdin?: boolean;
+      codeToReason?: Readonly<Record<number, string>>;
     } = { binary: config.binary };
     if (config.args) opts.args = config.args;
     if (config.timeoutMs !== undefined) opts.timeoutMs = config.timeoutMs;
     if (config.passRequestOnStdin !== undefined) opts.passRequestOnStdin = config.passRequestOnStdin;
+    if (config.codeToReason !== undefined) opts.codeToReason = config.codeToReason;
     return new ExecApprover(opts);
   }
   return undefined;

@@ -115,6 +115,53 @@ describe("parseConfig", () => {
     );
   });
 
+  it("parses touchid approver", () => {
+    const c = parseConfig({
+      ...base,
+      approver: { kind: "touchid", binary: "/custom/path", timeoutMs: 30000 },
+    });
+    expect(c.approver).toEqual({ kind: "touchid", binary: "/custom/path", timeoutMs: 30000 });
+  });
+
+  it("parses touchid approver with defaults", () => {
+    const c = parseConfig({ ...base, approver: { kind: "touchid" } });
+    expect(c.approver).toEqual({ kind: "touchid" });
+  });
+
+  it("parses exec approver with codeToReason", () => {
+    const c = parseConfig({
+      ...base,
+      approver: {
+        kind: "exec",
+        binary: "/bin/a",
+        codeToReason: { 10: "user cancelled", 11: "unavailable" },
+      },
+    });
+    expect(c.approver).toEqual({
+      kind: "exec",
+      binary: "/bin/a",
+      codeToReason: { 10: "user cancelled", 11: "unavailable" },
+    });
+  });
+
+  it("rejects non-integer codeToReason keys", () => {
+    expect(() =>
+      parseConfig({
+        ...base,
+        approver: { kind: "exec", binary: "/bin/a", codeToReason: { foo: "x" } },
+      }),
+    ).toThrow(/not an integer/);
+  });
+
+  it("rejects empty codeToReason values", () => {
+    expect(() =>
+      parseConfig({
+        ...base,
+        approver: { kind: "exec", binary: "/bin/a", codeToReason: { "10": "" } },
+      }),
+    ).toThrow(/non-empty string/);
+  });
+
   it("parses exec approver with args", () => {
     const c = parseConfig({
       ...base,

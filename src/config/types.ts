@@ -33,7 +33,8 @@ export interface WalletConfig {
 export type ApproverConfig =
   | { kind: "none" }
   | { kind: "osascript"; title?: string; timeoutMs?: number }
-  | { kind: "exec"; binary: string; args?: readonly string[]; timeoutMs?: number; passRequestOnStdin?: boolean };
+  | { kind: "touchid"; binary?: string; timeoutMs?: number }
+  | { kind: "exec"; binary: string; args?: readonly string[]; timeoutMs?: number; passRequestOnStdin?: boolean; codeToReason?: Record<number, string> };
 
 export const DEFAULT_POLICY: WalletPolicyEntry = {
   maxAmountPerRequest: "10000",

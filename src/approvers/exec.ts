@@ -8,6 +8,11 @@ export interface ExecApproverOptions {
   args?: readonly string[];
   timeoutMs?: number;
   passRequestOnStdin?: boolean;
+  /**
+   * Map non-zero exit codes to user-facing reason strings.
+   * Defaults to `"Approver exited with code N"`.
+   */
+  codeToReason?: Readonly<Record<number, string>>;
 }
 
 export interface SpawnLike {
@@ -63,8 +68,12 @@ export class ExecApprover implements Approver {
 
       child.on("error", (err) => settle(deny(`Approver process error: ${err.message}`)));
       child.on("close", (code) => {
-        if (code === 0) settle(APPROVED);
-        else settle(deny(`Approver exited with code ${code ?? "null"}`));
+        if (code === 0) {
+          settle(APPROVED);
+          return;
+        }
+        const mapped = code !== null ? this.opts.codeToReason?.[code] : undefined;
+        settle(deny(mapped ?? `Approver exited with code ${code ?? "null"}`));
       });
     });
   }

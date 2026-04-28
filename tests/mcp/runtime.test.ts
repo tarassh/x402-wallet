@@ -83,6 +83,11 @@ describe("approverFromConfig", () => {
     const a = approverFromConfig({ kind: "exec", binary: "/bin/approver", timeoutMs: 10_000 });
     expect(a).toBeInstanceOf(ExecApprover);
   });
+
+  it("builds a TouchID approver as an ExecApprover under the hood", () => {
+    const a = approverFromConfig({ kind: "touchid", binary: "/tmp/bin" });
+    expect(a).toBeInstanceOf(ExecApprover);
+  });
 });
 
 describe("buildRuntimeFromConfig", () => {
