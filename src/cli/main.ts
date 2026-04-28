@@ -3,6 +3,7 @@ import { run } from "./run.ts";
 import { realIo } from "./io.ts";
 import { FileConfigStore, defaultConfigPath } from "../config/store.ts";
 import { KeyringSecretStore } from "../signers/secret-store.ts";
+import { realFetchTransport } from "../mcp/transport.ts";
 
 async function main(): Promise<void> {
   const configPath = process.env.X402_WALLET_CONFIG ?? defaultConfigPath();
@@ -13,6 +14,7 @@ async function main(): Promise<void> {
     io: realIo,
     configPath,
     onboarding: { config: configStore, store: secretStore },
+    transport: realFetchTransport,
   });
   process.exit(exitCode);
 }

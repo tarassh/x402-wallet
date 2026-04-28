@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { privateKeyToAccount } from "viem/accounts";
 import { run } from "../../src/cli/run.ts";
 import type { CliDeps } from "../../src/cli/run.ts";
+import type { HttpResponse, HttpTransport } from "../../src/orchestrator/types.ts";
 import { FakeIo } from "./fake-io.ts";
 import { InMemoryConfigStore } from "../../src/config/store.ts";
 import { InMemorySecretStore } from "../../src/signers/secret-store.ts";
@@ -20,9 +21,20 @@ beforeEach(() => {
   secrets = new InMemorySecretStore();
 });
 
-const mkDeps = (io: FakeIo, random: () => `0x${string}` = () => PK): CliDeps => ({
+const noopTransport: HttpTransport = async () => ({
+  status: 200,
+  headers: new Headers(),
+  body: "{}",
+});
+
+const mkDeps = (
+  io: FakeIo,
+  random: () => `0x${string}` = () => PK,
+  transport: HttpTransport = noopTransport,
+): CliDeps => ({
   io,
   configPath: "/tmp/config.json",
+  transport,
   onboarding: {
     store: secrets,
     config,
@@ -190,6 +202,87 @@ describe("cli run", () => {
     it("fails when no label given", async () => {
       const io = new FakeIo();
       const code = await run(["show-address"], mkDeps(io));
+      expect(code).toBe(1);
+      expect(io.stderrBuf).toContain("requires a signer label");
+    });
+  });
+
+  describe("balance", () => {
+    const rpcResponse = (raw: string): HttpResponse => ({
+      status: 200,
+      headers: new Headers(),
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, result: raw }),
+    });
+
+    it("prints a balance per configured chain", async () => {
+      await run(["init", "--label", "b", "--chains", "8453"], mkDeps(new FakeIo()));
+      const calls: string[] = [];
+      const transport: HttpTransport = async (req) => {
+        calls.push(req.url);
+        return rpcResponse("0x1e8480"); // 2 USDC
+      };
+      const io = new FakeIo();
+      const code = await run(["balance", "b"], mkDeps(io, () => PK, transport));
+      expect(code).toBe(0);
+      const parsed = io.json() as { balances: Array<Record<string, unknown>> };
+      expect(parsed.balances).toHaveLength(1);
+      expect(parsed.balances[0]).toMatchObject({
+        chainId: 8453,
+        chainName: "Base",
+        raw: "2000000",
+        usdc: "2",
+      });
+      expect(calls).toEqual(["https://mainnet.base.org"]);
+    });
+
+    it("queries every chain for a multi-chain signer", async () => {
+      await run(
+        ["init", "--label", "m", "--chains", "8453,1"],
+        mkDeps(new FakeIo()),
+      );
+      const transport: HttpTransport = async (req) => {
+        return rpcResponse(req.url.includes("base") ? "0x1e8480" : "0xf4240"); // 1 USDC mainnet
+      };
+      const io = new FakeIo();
+      await run(["balance", "m"], mkDeps(io, () => PK, transport));
+      const parsed = io.json() as { balances: Array<Record<string, unknown>> };
+      expect(parsed.balances).toHaveLength(2);
+      const base = parsed.balances.find((b) => b.chainId === 8453)!;
+      const mainnet = parsed.balances.find((b) => b.chainId === 1)!;
+      expect(base.usdc).toBe("2");
+      expect(mainnet.usdc).toBe("1");
+    });
+
+    it("per-chain failures surface as error rows, not fatal", async () => {
+      await run(
+        ["init", "--label", "mix", "--chains", "8453,1"],
+        mkDeps(new FakeIo()),
+      );
+      const transport: HttpTransport = async (req) => {
+        if (req.url.includes("base")) return rpcResponse("0x1e8480");
+        return { status: 503, headers: new Headers(), body: "overloaded" };
+      };
+      const io = new FakeIo();
+      const code = await run(["balance", "mix"], mkDeps(io, () => PK, transport));
+      expect(code).toBe(0);
+      const parsed = io.json() as { balances: Array<Record<string, unknown>> };
+      const base = parsed.balances.find((b) => b.chainId === 8453)!;
+      const mainnet = parsed.balances.find((b) => b.chainId === 1)!;
+      expect(base.usdc).toBe("2");
+      expect(mainnet.error).toContain("HTTP 503");
+      expect(mainnet.usdc).toBeUndefined();
+    });
+
+    it("fails with helpful error for unknown label", async () => {
+      const io = new FakeIo();
+      const code = await run(["balance", "ghost"], mkDeps(io));
+      expect(code).toBe(1);
+      expect(io.stderrBuf).toContain("No signer");
+    });
+
+    it("fails when no label given", async () => {
+      const io = new FakeIo();
+      const code = await run(["balance"], mkDeps(io));
       expect(code).toBe(1);
       expect(io.stderrBuf).toContain("requires a signer label");
     });

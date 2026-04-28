@@ -9,11 +9,16 @@ import {
   removeSigner,
   showAddress,
 } from "../onboarding/commands.ts";
+import type { HttpTransport } from "../orchestrator/types.ts";
+import { getBalances } from "../onboarding/balance.ts";
+import { formatTokenAmount } from "../chain/balance.ts";
 
 export interface CliDeps {
   onboarding: OnboardingDeps;
   io: CliIo;
   configPath: string;
+  transport: HttpTransport;
+  rpcOverrides?: Record<number, string>;
 }
 
 const USAGE = `x402-wallet — agentic wallet for x402-gated APIs
@@ -26,6 +31,7 @@ COMMANDS
   import-key     Import an existing private key (from stdin by default).
   list           List all registered signers.
   show-address   Print the address for a given signer label.
+  balance        Print USDC balance across all configured chains.
   remove         Delete a signer (from config and keychain).
   help           Show this message.
 
@@ -48,6 +54,8 @@ export async function run(argv: readonly string[], deps: CliDeps): Promise<numbe
         return await cmdList(deps);
       case "show-address":
         return await cmdShow(parsed.options, parsed.positional, deps);
+      case "balance":
+        return await cmdBalance(parsed.options, parsed.positional, deps);
       case "remove":
         return await cmdRemove(parsed.options, parsed.positional, deps);
       case "help":
@@ -142,6 +150,41 @@ async function cmdShow(
   if (!label) throw new Error("show-address requires a signer label");
   const address = await showAddress(deps.onboarding, label);
   deps.io.stdout(`${address}\n`);
+  return 0;
+}
+
+async function cmdBalance(
+  opts: Record<string, string | true>,
+  positional: readonly string[],
+  deps: CliDeps,
+): Promise<number> {
+  const label = positional[0] ?? optionalOption(opts, "label");
+  if (!label) throw new Error("balance requires a signer label");
+  const report = await getBalances(
+    {
+      config: deps.onboarding.config,
+      transport: deps.transport,
+      ...(deps.rpcOverrides ? { rpcOverrides: deps.rpcOverrides } : {}),
+    },
+    label,
+  );
+  const rows = report.rows.map((r) => ({
+    chainId: r.chainId,
+    chainName: r.chainName,
+    rpcUrl: r.rpcUrl,
+    ...(r.raw !== undefined ? { raw: r.raw } : {}),
+    ...(r.raw !== undefined && r.decimals !== undefined
+      ? { usdc: formatTokenAmount(BigInt(r.raw), r.decimals) }
+      : {}),
+    ...(r.error !== undefined ? { error: r.error } : {}),
+  }));
+  deps.io.stdout(
+    JSON.stringify(
+      { label: report.label, address: report.address, balances: rows },
+      null,
+      2,
+    ) + "\n",
+  );
   return 0;
 }
 
