@@ -158,6 +158,8 @@ src/
   signers/         Signer interface, MockSigner, KeychainSigner, SecretStore
   x402/            challenge parser + EIP-3009 payload builder
   onboarding/      CLI commands.ts (init/import/list/show/remove) + balance.ts (label → address → on-chain USDC)
+                   + config-actions.ts (pure policy mutations + USDC↔atomic) + config-edit.ts ($EDITOR flow)
+                   + config-wizard.ts (@clack/prompts arrow-key wizard)
 scripts/
   touchid-approver.swift       Touch ID / password helper (LocalAuthentication)
   build-touchid-approver.sh    Compiles the Swift helper
@@ -192,7 +194,7 @@ scripts/build-touchid-approver.sh   # compile Swift helper → ~/.x402-wallet/bi
 
 - Ledger signer. The `Signer` interface is ready (only needs `signTypedData`); plan is `@ledgerhq/hw-transport-node-hid` + `@ledgerhq/hw-app-eth`.
 - Funding helper — `balance` CLI reads on-chain USDC, but no faucet deep-link or guided deposit flow.
-- CLI commands for managing origins, budgets, approvers after initial setup (today the config file is hand-edited once created).
+- ~~CLI commands for managing origins, budgets, approvers after initial setup~~ — `bun run cli -- config wizard|edit|show` cover this. (Mnemonic export, BIP-39 recovery still TODO.)
 - Out-of-band approval queue (agent gets `pending_approval` synchronously; a separate UI approves out of band).
 - Multi-asset / `upto` scheme support. USDC + `exact` only today.
 - BIP-39 mnemonic export / recovery flow.

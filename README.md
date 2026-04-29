@@ -55,9 +55,17 @@ your shell history).
 
 ## Configure spend limits
 
-The wallet creates `~/.config/x402-wallet/config.json` on first run. Edit it
-to set policy. Amounts are atomic units (USDC has 6 decimals, so `10000` =
-`0.01 USDC`).
+Three ways, pick whichever you prefer:
+
+```bash
+bun run cli -- config wizard   # arrow-key TUI: limits, approver, origins, budgets
+bun run cli -- config edit     # opens the JSON in $EDITOR, validates on save
+bun run cli -- config show     # print current settings (read-only)
+```
+
+Or hand-edit `~/.config/x402-wallet/config.json` directly. Amounts in the file
+are atomic units (USDC has 6 decimals, so `10000` = `0.01 USDC`); the wizard
+shows them as plain USDC numbers.
 
 ```jsonc
 {

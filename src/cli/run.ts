@@ -12,6 +12,10 @@ import {
 import type { HttpTransport } from "../orchestrator/types.ts";
 import { getBalances } from "../onboarding/balance.ts";
 import { formatTokenAmount } from "../chain/balance.ts";
+import { summarize } from "../onboarding/config-actions.ts";
+import { configEdit, realEditorRunner } from "../onboarding/config-edit.ts";
+import type { EditorRunner } from "../onboarding/config-edit.ts";
+import { configWizard } from "../onboarding/config-wizard.ts";
 
 export interface CliDeps {
   onboarding: OnboardingDeps;
@@ -19,6 +23,7 @@ export interface CliDeps {
   configPath: string;
   transport: HttpTransport;
   rpcOverrides?: Record<number, string>;
+  runEditor?: EditorRunner;
 }
 
 const USAGE = `x402-wallet — agentic wallet for x402-gated APIs
@@ -33,6 +38,9 @@ COMMANDS
   show-address   Print the address for a given signer label.
   balance        Print USDC balance across all configured chains.
   remove         Delete a signer (from config and keychain).
+  config show    Print the current config (limits, approver, allowlist).
+  config wizard  Interactive arrow-key editor for limits / approver / origins.
+  config edit    Open the config JSON in $EDITOR (validates on save).
   help           Show this message.
 
 COMMON OPTIONS
@@ -58,6 +66,8 @@ export async function run(argv: readonly string[], deps: CliDeps): Promise<numbe
         return await cmdBalance(parsed.options, parsed.positional, deps);
       case "remove":
         return await cmdRemove(parsed.options, parsed.positional, deps);
+      case "config":
+        return await cmdConfig(parsed.positional, deps);
       case "help":
       case "--help":
       case "-h":
@@ -198,4 +208,39 @@ async function cmdRemove(
   await removeSigner(deps.onboarding, label);
   deps.io.stdout(`Removed signer "${label}"\n`);
   return 0;
+}
+
+async function cmdConfig(
+  positional: readonly string[],
+  deps: CliDeps,
+): Promise<number> {
+  const sub = positional[0];
+  switch (sub) {
+    case undefined:
+    case "wizard":
+      return await configWizard({ config: deps.onboarding.config });
+    case "show": {
+      const config = await deps.onboarding.config.load();
+      deps.io.stdout(
+        JSON.stringify(
+          { configPath: deps.configPath, ...summarize(config) },
+          null,
+          2,
+        ) + "\n",
+      );
+      return 0;
+    }
+    case "edit":
+      return await configEdit({
+        config: deps.onboarding.config,
+        io: deps.io,
+        runEditor: deps.runEditor ?? realEditorRunner,
+      });
+    default:
+      deps.io.stderr(
+        `Unknown config subcommand: ${sub}. ` +
+          `Use one of: show, wizard, edit.\n`,
+      );
+      return 64;
+  }
 }
