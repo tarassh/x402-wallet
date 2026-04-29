@@ -35,6 +35,15 @@ bun run cli -- init --label keychain:main --chains 8453
 ./scripts/install-mcp.sh
 ```
 
+> **What is `keychain:main`?** It's the **label** you give this signer — a
+> name *you* choose so you can refer to it later (`show-address`, `balance`,
+> `remove`, etc.). It's not a magic string. Use anything that matches
+> `[A-Za-z0-9:_.-]+` (1–64 chars, must be unique in your config). The
+> `keychain:` prefix is just a convention reminding you the key lives in the
+> macOS Keychain. Common picks: `keychain:main`, `keychain:work`, `personal`,
+> `hot-wallet`. Run `bun run cli -- list` any time to see the labels you
+> registered.
+
 Restart Claude Code. You should see four new tools available:
 
 - `x402_fetch` — make an HTTP request, auto-paying any x402 challenge
@@ -46,8 +55,10 @@ Verify the registration any time with `claude mcp list`.
 
 ## Bring your own key
 
+Same idea — pick a label, then pipe the key in via stdin:
+
 ```bash
-echo "0xYOUR_PRIVATE_KEY" | bun run cli -- import-key --label main --chains 8453
+echo "0xYOUR_PRIVATE_KEY" | bun run cli -- import-key --label keychain:main --chains 8453
 ```
 
 Pipe via stdin — never pass `--private-key` on the command line (it leaks into
@@ -103,11 +114,13 @@ The `osascript` dialog defaults to **Deny** — pressing Enter or Esc rejects.
 
 ## Day-to-day commands
 
+Replace `keychain:main` below with whatever label you registered.
+
 ```bash
-bun run cli -- list                                # registered signers
-bun run cli -- show-address keychain:main          # public address
+bun run cli -- list                                # registered signers (and their labels)
+bun run cli -- show-address keychain:main          # public address for a label
 bun run cli -- balance keychain:main --chain 8453  # on-chain USDC balance
-bun run cli -- remove keychain:main                # delete signer + Keychain item
+bun run cli -- remove keychain:main                # delete signer + its Keychain item
 ```
 
 ## Updating
@@ -122,7 +135,8 @@ bun install
 
 ```bash
 claude mcp remove x402-wallet -s user
-bun run cli -- remove keychain:main         # wipes the Keychain item too
+bun run cli -- list                          # find the label(s) you registered
+bun run cli -- remove keychain:main          # repeat per label; wipes the Keychain item too
 rm -rf ~/.config/x402-wallet ~/.x402-wallet
 ```
 
