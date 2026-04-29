@@ -116,22 +116,43 @@ prompt_choice() {
 }
 
 # --- step 1: prereqs ---
+# Find a binary on PATH or in well-known install locations (handles the case
+# where the user just ran `curl bun.sh/install | bash` and hasn't reloaded their
+# shell rc yet). Prepends the dir to PATH on success.
+find_or_die() {
+  local name=$1 install_hint=$2
+  shift 2
+  if command -v "$name" >/dev/null 2>&1; then return 0; fi
+  for candidate in "$@"; do
+    if [ -x "$candidate" ]; then
+      export PATH="$(dirname "$candidate"):$PATH"
+      echo "  (found $name at $candidate; prepended its dir to PATH for this run)"
+      return 0
+    fi
+  done
+  echo "  $name ... missing" >&2
+  echo "    $install_hint" >&2
+  return 1
+}
+
 echo "==> Checking prerequisites"
 miss=0
-if ! command -v bun >/dev/null 2>&1; then
-  echo "  bun ... missing" >&2
-  echo "    Install: curl -fsSL https://bun.sh/install | bash" >&2
-  miss=1
-else
-  echo "  bun ... ok ($(bun --version))"
-fi
-if ! command -v claude >/dev/null 2>&1; then
-  echo "  claude ... missing" >&2
-  echo "    Install Claude Code: https://docs.claude.com/en/docs/claude-code" >&2
-  miss=1
-else
-  echo "  claude ... ok"
-fi
+find_or_die bun \
+  "Install: curl -fsSL https://bun.sh/install | bash    (then: exec \$SHELL)" \
+  "$HOME/.bun/bin/bun" \
+  "/opt/homebrew/bin/bun" \
+  "/usr/local/bin/bun" \
+  || miss=1
+[ $miss -eq 0 ] && echo "  bun ... ok ($(bun --version))"
+
+find_or_die claude \
+  "Install Claude Code: https://docs.claude.com/en/docs/claude-code" \
+  "$HOME/.local/bin/claude" \
+  "/opt/homebrew/bin/claude" \
+  "/usr/local/bin/claude" \
+  || miss=1
+[ "$(command -v claude)" ] && echo "  claude ... ok"
+
 [ $miss -eq 0 ] || exit 1
 
 # --- step 2: bun install ---
