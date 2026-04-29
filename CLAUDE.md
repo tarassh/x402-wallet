@@ -160,10 +160,12 @@ src/
   onboarding/      CLI commands.ts (init/import/list/show/remove) + balance.ts (label → address → on-chain USDC)
                    + config-actions.ts (pure policy mutations + USDC↔atomic) + config-edit.ts ($EDITOR flow)
                    + config-wizard.ts (@clack/prompts arrow-key wizard)
+setup.sh                       Top-level interactive installer (deps, MCP, slash, key, Touch ID)
 scripts/
   touchid-approver.swift       Touch ID / password helper (LocalAuthentication)
   build-touchid-approver.sh    Compiles the Swift helper
   install-mcp.sh               Registers the wallet as a stdio MCP server in Claude Code (user scope)
+.claude/commands/x402-wallet.md  Project-scoped slash command (setup.sh can mirror to ~/.claude/commands/)
 tests/             Mirrors src/ tree, plus tests/e2e/
 ```
 

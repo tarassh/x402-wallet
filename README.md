@@ -26,13 +26,19 @@ per payment.
 ```bash
 git clone <this-repo-url> x402-wallet
 cd x402-wallet
-bun install
+./setup.sh
+```
 
-# Generate a fresh key in the macOS Keychain (or use import-key to bring your own).
-bun run cli -- init --label keychain:main --chains 8453
+The setup script walks you through everything: checks Bun + Claude Code,
+runs `bun install`, registers the `/x402-wallet` slash command (user scope by
+default), wires the MCP server into Claude Code, creates your first key, and
+optionally builds the Touch ID approver.
 
-# Wire the MCP server into Claude Code at user scope.
-./scripts/install-mcp.sh
+Non-interactive flavor (CI-friendly):
+
+```bash
+./setup.sh --yes --label keychain:main --chains 8453     # accept all defaults
+./setup.sh --help                                         # see all flags
 ```
 
 > **What is `keychain:main`?** It's the **label** you give this signer — a
@@ -132,14 +138,14 @@ bun run cli -- remove keychain:main                # delete signer + its Keychai
 
 ```bash
 git pull
-bun install
-./scripts/install-mcp.sh   # idempotent; safe to re-run
+./setup.sh --yes --skip-key --skip-touchid   # idempotent; safe to re-run
 ```
 
 ## Uninstall
 
 ```bash
 claude mcp remove x402-wallet -s user
+rm -f ~/.claude/commands/x402-wallet.md      # only if you installed it user-scope
 bun run cli -- list                          # find the label(s) you registered
 bun run cli -- remove keychain:main          # repeat per label; wipes the Keychain item too
 rm -rf ~/.config/x402-wallet ~/.x402-wallet

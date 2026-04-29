@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "start": "bun run src/mcp/server.ts",
     "cli": "bun run src/cli/main.ts",
+    "setup": "bash setup.sh",
     "install-mcp": "bash scripts/install-mcp.sh",
     "build-touchid": "bash scripts/build-touchid-approver.sh"
   },
