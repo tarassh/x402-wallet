@@ -82,6 +82,7 @@ echo "0x…" | bunx x402-wallet import-key --label backup --chains 8453,1
 
 bunx x402-wallet list
 bunx x402-wallet show-address keychain:main
+bunx x402-wallet balance keychain:main --chain 8453
 bunx x402-wallet remove keychain:main
 ```
 
@@ -150,14 +151,17 @@ The MCP server (`x402-wallet-mcp`, wired as `bun run start`) loads this config o
 src/
   approvers/       Approver interface + Mock/Always/Deny/Exec/Osascript + formatters
   audit/           SqliteAuditLog (implements AuditLog + SpendHistory)
+  chain/           USDC contract addresses (usdc.ts) + on-chain ERC-20 balance reads via viem (balance.ts)
   mcp/             build.ts, server.ts entrypoint, tools.ts, transport.ts
   orchestrator/    payment state machine
   policy/          PolicyEngine + InMemorySpendHistory
   signers/         Signer interface, MockSigner, KeychainSigner, SecretStore
   x402/            challenge parser + EIP-3009 payload builder
+  onboarding/      CLI commands.ts (init/import/list/show/remove) + balance.ts (label → address → on-chain USDC)
 scripts/
   touchid-approver.swift       Touch ID / password helper (LocalAuthentication)
   build-touchid-approver.sh    Compiles the Swift helper
+  install-mcp.sh               Registers the wallet as a stdio MCP server in Claude Code (user scope)
 tests/             Mirrors src/ tree, plus tests/e2e/
 ```
 
@@ -172,6 +176,7 @@ RUN_E2E=1 bun test tests/e2e        # hit real transit402.dev 402 (no payment)
 bun run start                       # stdio MCP server (src/mcp/server.ts)
 bun run cli -- list                 # run the CLI in-repo
 bunx x402-wallet init --label …     # once installed globally
+scripts/install-mcp.sh              # register the MCP server with Claude Code (user scope, idempotent)
 scripts/build-touchid-approver.sh   # compile Swift helper → ~/.x402-wallet/bin
 ```
 
@@ -186,7 +191,7 @@ scripts/build-touchid-approver.sh   # compile Swift helper → ~/.x402-wallet/bi
 ## What's not built yet
 
 - Ledger signer. The `Signer` interface is ready (only needs `signTypedData`); plan is `@ledgerhq/hw-transport-node-hid` + `@ledgerhq/hw-app-eth`.
-- Funding helper — no built-in way to print balance, deep-link to a faucet, or guide deposits.
+- Funding helper — `balance` CLI reads on-chain USDC, but no faucet deep-link or guided deposit flow.
 - CLI commands for managing origins, budgets, approvers after initial setup (today the config file is hand-edited once created).
 - Out-of-band approval queue (agent gets `pending_approval` synchronously; a separate UI approves out of band).
 - Multi-asset / `upto` scheme support. USDC + `exact` only today.
