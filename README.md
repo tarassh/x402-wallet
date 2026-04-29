@@ -74,6 +74,11 @@ bun run cli -- config edit     # opens the JSON in $EDITOR, validates on save
 bun run cli -- config show     # print current settings (read-only)
 ```
 
+Inside a Claude Code session opened from this repo, the `/x402-wallet` slash
+command is also available (`show` / `list` / `balance` run inline; `wizard` and
+`edit` print the matching `!` shell command for you to invoke — the agent's
+sandboxed Bash has no TTY for the TUI).
+
 Or hand-edit `~/.config/x402-wallet/config.json` directly. Amounts in the file
 are atomic units (USDC has 6 decimals, so `10000` = `0.01 USDC`); the wizard
 shows them as plain USDC numbers.
