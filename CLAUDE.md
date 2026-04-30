@@ -11,6 +11,7 @@ Personal agentic wallet that speaks the x402 / EIP-3009 payment protocol, expose
 - MCP: **`@modelcontextprotocol/sdk`**
 - Audit log + spend history: **`bun:sqlite`**
 - Keyring: **`@napi-rs/keyring`** (macOS Keychain on this machine)
+- Interactive CLI: **`@clack/prompts`** (config wizard) and **`qrcode-terminal`** (topup QR)
 
 ## Architecture
 
@@ -160,6 +161,7 @@ src/
   onboarding/      CLI commands.ts (init/import/list/show/remove) + balance.ts (label → address → on-chain USDC)
                    + config-actions.ts (pure policy mutations + USDC↔atomic) + config-edit.ts ($EDITOR flow)
                    + config-wizard.ts (@clack/prompts arrow-key wizard)
+                   + topup.ts (address + chain registry data; QR rendering via qrcode-terminal in CLI)
 setup.sh                       Top-level interactive installer (deps, MCP, slash, key, Touch ID)
 scripts/
   touchid-approver.swift       Touch ID / password helper (LocalAuthentication)
