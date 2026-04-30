@@ -7,49 +7,43 @@ The user invoked `/x402-wallet` with arguments: `$ARGUMENTS`
 
 ## How to run wallet commands
 
-Claude Code's Bash tool spawns a non-login shell. `bun` is **often not on
-PATH** there (it's typically installed at `~/.bun/bin/bun`, which only
-interactive shells pick up via `~/.zshrc` or `~/.bashrc`). Also: `bun run cli
-…` runs the package script `bun run src/cli/main.ts …`, which re-spawns `bun`
-via PATH and fails the same way.
-
-**Always use this exact pattern** for every wallet invocation in this command:
+Use this single command for every wallet invocation in this slash command:
 
 ```bash
-BUN="$(command -v bun || true)"
-[ -z "$BUN" ] && [ -x "$HOME/.bun/bin/bun" ] && BUN="$HOME/.bun/bin/bun"
-[ -z "$BUN" ] && [ -x /opt/homebrew/bin/bun ] && BUN=/opt/homebrew/bin/bun
-[ -z "$BUN" ] && [ -x /usr/local/bin/bun ] && BUN=/usr/local/bin/bun
-[ -z "$BUN" ] && { echo "error: bun not found"; exit 1; }
-"$BUN" src/cli/main.ts <subcommand> [args]
+bash scripts/wallet-cli.sh <subcommand> [args...]
 ```
 
+That wrapper resolves an absolute path to `bun` (PATH → `~/.bun/bin/bun` →
+`/opt/homebrew/bin/bun` → `/usr/local/bin/bun`) and execs the CLI. Don't
+inline a bun-finding recipe in the agent's Bash — it trips the permission
+prompt's brace/quote heuristic and asks the user to confirm every time.
+
 The current working directory is assumed to be this repo (so
-`src/cli/main.ts` resolves). If `pwd` reports something else, `cd` to the
-repo first.
+`scripts/wallet-cli.sh` resolves). If `pwd` reports something else, `cd` to
+the repo first.
 
 ## Dispatch by first argument
 
 ### `show` (or no arguments and the user asks for a summary)
 
-Run `"$BUN" src/cli/main.ts config show` via Bash. Pretty-print the JSON.
+Run `bash scripts/wallet-cli.sh config show` via Bash. Pretty-print the JSON.
 
 ### `list`
 
-Run `"$BUN" src/cli/main.ts list`. Show registered signer labels and addresses.
+Run `bash scripts/wallet-cli.sh list`. Show registered signer labels and addresses.
 
 ### `balance [label] [--chain N]`
 
-If a label was provided, run `"$BUN" src/cli/main.ts balance <label>` (append
+If a label was provided, run `bash scripts/wallet-cli.sh balance <label>` (append
 `--chain N` if a chain was given).
 
-If no label was provided, first run `"$BUN" src/cli/main.ts list`. If exactly
+If no label was provided, first run `bash scripts/wallet-cli.sh list`. If exactly
 one signer is registered, use it. Otherwise list the labels and ask the user
 which one.
 
 ### `topup [label]`
 
-Run `"$BUN" src/cli/main.ts topup <label>`. The CLI prints the wallet address,
+Run `bash scripts/wallet-cli.sh topup <label>`. The CLI prints the wallet address,
 an ANSI QR code of the address, and the USDC contract for each configured
 chain. Forward the output verbatim to the user — the QR is meant for them to
 scan with a phone wallet. If no label was given the CLI auto-uses the only
