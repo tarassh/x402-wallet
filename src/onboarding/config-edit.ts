@@ -46,7 +46,11 @@ export async function configEdit(deps: ConfigEditDeps): Promise<number> {
       return 1;
     }
     await deps.config.save(next);
-    deps.io.stderr(`Saved config to ${deps.config.path()}.\n`);
+    deps.io.stderr(
+      `Saved config to ${deps.config.path()}.\n` +
+        `Note: the MCP server reads this config at startup. Fully quit and\n` +
+        `reopen Claude Code for limit / approver changes to take effect there.\n`,
+    );
     return 0;
   } finally {
     await fs.unlink(tmpPath).catch(() => undefined);

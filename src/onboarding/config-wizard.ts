@@ -85,6 +85,12 @@ export async function configWizard(deps: ConfigWizardDeps): Promise<number> {
         case "save": {
           if (dirty) {
             await deps.config.save(config);
+            p.note(
+              "The MCP server in Claude Code reads this config once at startup.\n" +
+                "Fully quit and reopen Claude Code so the running server picks up\n" +
+                "the new policy / approver. CLI commands here always read fresh.",
+              "Restart needed",
+            );
             p.outro(`Saved to ${deps.config.path()}`);
           } else {
             p.outro("No changes.");

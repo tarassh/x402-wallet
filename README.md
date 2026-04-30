@@ -169,6 +169,12 @@ rm -rf ~/.config/x402-wallet ~/.x402-wallet
   request, or fall back to `"approver": { "kind": "osascript" }`.
 - **No signers configured** — the MCP server still starts, but every payment
   request returns `no_signer`. Run `bun run cli -- init …` first.
+- **Config changes don't take effect in Claude Code** — the MCP server reads
+  `~/.config/x402-wallet/config.json` once at startup. After running
+  `config wizard` / `config edit`, **fully quit and reopen Claude Code** so the
+  running server reloads. The CLI subcommands always read the file fresh, so
+  `bun run cli -- config show` will reflect changes immediately even if your
+  agent session still sees the old policy.
 
 ## Architecture / development
 
