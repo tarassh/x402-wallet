@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import * as path from "path";
 import type { ApprovalRequest, ApprovalResult, Approver } from "./types.ts";
 import { APPROVED, deny } from "./types.ts";
 import { buildApprovalView, summarizeForPrompt } from "./format.ts";
@@ -41,7 +42,7 @@ export class ExecApprover implements Approver {
   }
 
   async approve(request: ApprovalRequest): Promise<ApprovalResult> {
-    const child = this.spawner(this.opts.binary, this.opts.args ?? [], {
+    const child = this.spawner(expandHome(this.opts.binary), this.opts.args ?? [], {
       stdio: ["pipe", "pipe", "pipe"],
     });
 
@@ -97,4 +98,17 @@ function serializeRequest(r: ApprovalRequest): Record<string, unknown> {
     summary: summarizeForPrompt(r),
     view,
   };
+}
+
+// Tilde-expand `~/foo` and `~` to `$HOME/foo` and `$HOME`. The shell does this
+// for interactive paths, but `child_process.spawn` does not — without this,
+// configs that store "~/.x402-wallet/bin/touchid-approver" fail with ENOENT.
+export function expandHome(p: string): string {
+  if (p === "~") return process.env.HOME ?? p;
+  if (p.startsWith("~/")) {
+    const home = process.env.HOME;
+    if (!home) return p;
+    return path.join(home, p.slice(2));
+  }
+  return p;
 }

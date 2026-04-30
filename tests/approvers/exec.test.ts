@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { ExecApprover } from "../../src/approvers/exec.ts";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { ExecApprover, expandHome } from "../../src/approvers/exec.ts";
 import type { ApprovalRequest } from "../../src/approvers/types.ts";
 import { FakeSpawn } from "./fake-spawn.ts";
 
@@ -123,5 +123,52 @@ describe("ExecApprover", () => {
     expect(r.approved).toBe(false);
     if (r.approved) throw new Error("unreachable");
     expect(r.reason).toContain("timed out");
+  });
+
+  it("tilde-expands the binary path before spawning", async () => {
+    const fake = new FakeSpawn().queue({ exitCode: 0 });
+    const a = new ExecApprover({ binary: "~/.x402-wallet/bin/touchid-approver" }, fake.spawner);
+    await a.approve(req);
+    expect(fake.invocations[0]?.command).toBe(
+      `${process.env.HOME}/.x402-wallet/bin/touchid-approver`,
+    );
+  });
+});
+
+describe("expandHome", () => {
+  let savedHome: string | undefined;
+  beforeEach(() => {
+    savedHome = process.env.HOME;
+  });
+  afterEach(() => {
+    if (savedHome === undefined) delete process.env.HOME;
+    else process.env.HOME = savedHome;
+  });
+
+  it("expands a leading ~/", () => {
+    process.env.HOME = "/Users/tester";
+    expect(expandHome("~/.x402-wallet/bin/touchid-approver")).toBe(
+      "/Users/tester/.x402-wallet/bin/touchid-approver",
+    );
+  });
+
+  it("expands a bare ~", () => {
+    process.env.HOME = "/Users/tester";
+    expect(expandHome("~")).toBe("/Users/tester");
+  });
+
+  it("leaves absolute paths unchanged", () => {
+    process.env.HOME = "/Users/tester";
+    expect(expandHome("/usr/local/bin/foo")).toBe("/usr/local/bin/foo");
+  });
+
+  it("does not expand ~user (only ~ and ~/)", () => {
+    process.env.HOME = "/Users/tester";
+    expect(expandHome("~alice/foo")).toBe("~alice/foo");
+  });
+
+  it("returns the input unchanged when HOME is unset", () => {
+    delete process.env.HOME;
+    expect(expandHome("~/foo")).toBe("~/foo");
   });
 });
