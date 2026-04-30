@@ -1,6 +1,6 @@
 ---
-description: x402-wallet — manage signers, spend limits, approver, balance
-argument-hint: [show | wizard | edit | list | balance [label] | help]
+description: x402-wallet — manage signers, spend limits, approver, balance, topup
+argument-hint: [show | wizard | edit | list | balance [label] | topup [label] | help]
 ---
 
 The user invoked `/x402-wallet` with arguments: `$ARGUMENTS`
@@ -47,6 +47,15 @@ If no label was provided, first run `"$BUN" src/cli/main.ts list`. If exactly
 one signer is registered, use it. Otherwise list the labels and ask the user
 which one.
 
+### `topup [label]`
+
+Run `"$BUN" src/cli/main.ts topup <label>`. The CLI prints the wallet address,
+an ANSI QR code of the address, and the USDC contract for each configured
+chain. Forward the output verbatim to the user — the QR is meant for them to
+scan with a phone wallet. If no label was given the CLI auto-uses the only
+signer when there's exactly one; otherwise it errors and you should ask the
+user which label.
+
 ### `wizard` (or no first argument other than the empty string)
 
 The wizard is an interactive arrow-key TUI and the agent's Bash has no real
@@ -79,6 +88,7 @@ Print:
   /x402-wallet show              Print current settings (limits, approver, allowlist)
   /x402-wallet list              List registered signer labels + addresses
   /x402-wallet balance [label]   On-chain USDC balance for a signer
+  /x402-wallet topup [label]     Show address + scannable QR + USDC contract per chain
   /x402-wallet wizard            Interactive arrow-key settings TUI (uses ! prefix)
   /x402-wallet edit              Open config in $EDITOR (uses ! prefix)
   /x402-wallet help              This message

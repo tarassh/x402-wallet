@@ -132,8 +132,13 @@ Replace `keychain:main` below with whatever label you registered.
 bun run cli -- list                                # registered signers (and their labels)
 bun run cli -- show-address keychain:main          # public address for a label
 bun run cli -- balance keychain:main --chain 8453  # on-chain USDC balance
+bun run cli -- topup keychain:main                 # address + scannable QR + USDC contract per chain
 bun run cli -- remove keychain:main                # delete signer + its Keychain item
 ```
+
+`topup` prints an ANSI QR you can scan with any phone wallet, the wallet
+address as text, and the USDC contract for each configured chain so you don't
+send the wrong asset.
 
 ## Updating
 

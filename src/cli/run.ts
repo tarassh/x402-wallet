@@ -16,6 +16,7 @@ import { summarize } from "../onboarding/config-actions.ts";
 import { configEdit, realEditorRunner } from "../onboarding/config-edit.ts";
 import type { EditorRunner } from "../onboarding/config-edit.ts";
 import { configWizard } from "../onboarding/config-wizard.ts";
+import { buildTopupReport } from "../onboarding/topup.ts";
 
 export interface CliDeps {
   onboarding: OnboardingDeps;
@@ -38,6 +39,7 @@ COMMANDS
   show-address   Print the address for a given signer label.
   balance        Print USDC balance across all configured chains.
   remove         Delete a signer (from config and keychain).
+  topup          Show address + QR + USDC contract per chain (for funding).
   config show    Print the current config (limits, approver, allowlist).
   config wizard  Interactive arrow-key editor for limits / approver / origins.
   config edit    Open the config JSON in $EDITOR (validates on save).
@@ -68,6 +70,8 @@ export async function run(argv: readonly string[], deps: CliDeps): Promise<numbe
         return await cmdRemove(parsed.options, parsed.positional, deps);
       case "config":
         return await cmdConfig(parsed.positional, deps);
+      case "topup":
+        return await cmdTopup(parsed.options, parsed.positional, deps);
       case "help":
       case "--help":
       case "-h":
@@ -208,6 +212,81 @@ async function cmdRemove(
   await removeSigner(deps.onboarding, label);
   deps.io.stdout(`Removed signer "${label}"\n`);
   return 0;
+}
+
+async function cmdTopup(
+  opts: Record<string, string | true>,
+  positional: readonly string[],
+  deps: CliDeps,
+): Promise<number> {
+  let label = positional[0] ?? optionalOption(opts, "label");
+  if (!label) {
+    const config = await deps.onboarding.config.load();
+    if (config.signers.length === 1) {
+      label = config.signers[0]!.label;
+    } else if (config.signers.length === 0) {
+      throw new Error("topup: no signers configured. Run `init` or `import-key` first.");
+    } else {
+      throw new Error(
+        `topup: multiple signers configured; pass a label (got ${config.signers
+          .map((s) => `"${s.label}"`)
+          .join(", ")})`,
+      );
+    }
+  }
+
+  const report = await buildTopupReport({ config: deps.onboarding.config }, label);
+
+  // Render an ANSI QR via qrcode-terminal. Dynamically imported so unrelated
+  // CLI commands work even if the optional dep isn't installed.
+  // The library reads `this._errorLevel` internally, so we call generate()
+  // through the module object (not a detached reference) to preserve binding.
+  const qrModule = (await import("qrcode-terminal")) as unknown as {
+    default?: QrTerminal;
+  } & QrTerminal;
+  const qr: QrTerminal = (qrModule.default ?? qrModule) as QrTerminal;
+  if (typeof qr?.generate !== "function") {
+    throw new Error(
+      "qrcode-terminal failed to load. Try `bun install` from the repo root.",
+    );
+  }
+
+  const qrText = await new Promise<string>((resolve) => {
+    qr.generate(report.address, { small: true }, (out: string) => resolve(out));
+  });
+
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(`Top up "${report.label}"`);
+  lines.push(`Address: ${report.address}`);
+  lines.push("");
+  lines.push(qrText);
+  lines.push("Send USDC (decimals: 6) on any of these networks:");
+  for (const c of report.chains) {
+    lines.push(`  • ${c.chainName} (chainId ${c.chainId})`);
+    lines.push(`      USDC contract: ${c.usdcContract}`);
+    lines.push(`      Explorer:      ${c.explorerAddressUrl}`);
+  }
+  if (report.unknownChainIds.length > 0) {
+    lines.push("");
+    lines.push(
+      `WARNING: configured chains not in this build's USDC registry: ${report.unknownChainIds.join(", ")}`,
+    );
+    lines.push("Do not send USDC on those chains until support is added.");
+  }
+  lines.push("");
+  lines.push("WARNING: send USDC ONLY. Sending other tokens may be permanently lost.");
+  lines.push("");
+  deps.io.stdout(lines.join("\n"));
+  return 0;
+}
+
+interface QrTerminal {
+  generate(
+    input: string,
+    opts: { small?: boolean },
+    cb: (out: string) => void,
+  ): void;
 }
 
 async function cmdConfig(
