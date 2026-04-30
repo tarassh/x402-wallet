@@ -80,10 +80,11 @@ bun run cli -- config edit     # opens the JSON in $EDITOR, validates on save
 bun run cli -- config show     # print current settings (read-only)
 ```
 
-Inside a Claude Code session opened from this repo, the `/x402-wallet` slash
-command is also available (`show` / `list` / `balance` run inline; `wizard` and
-`edit` print the matching `!` shell command for you to invoke — the agent's
-sandboxed Bash has no TTY for the TUI).
+Inside a Claude Code session, the `/x402-wallet` slash command is also
+available — works from any directory if you picked `user` scope at install,
+or only from inside this repo if you picked `project` scope. `show` / `list` /
+`balance` run inline; `wizard` and `edit` print the matching `!` shell command
+for you to invoke (the agent's sandboxed Bash has no TTY for the TUI).
 
 Or hand-edit `~/.config/x402-wallet/config.json` directly. Amounts in the file
 are atomic units (USDC has 6 decimals, so `10000` = `0.01 USDC`); the wizard
@@ -153,10 +154,16 @@ rm -rf ~/.config/x402-wallet ~/.x402-wallet
 
 ## Troubleshooting
 
-- **`claude mcp list` doesn't show the server** — re-run `./scripts/install-mcp.sh`
-  from inside the repo, then fully restart Claude Code.
-- **`bun: command not found` after install** — open a new terminal, or
-  `source ~/.bashrc` / `~/.zshrc` so Bun's `PATH` entry takes effect.
+- **`claude mcp list` shows `x402-wallet ✗ Failed to connect`** — the old
+  registration used bare `bun`, which Claude Code can't resolve when launched
+  from Spotlight/Dock without your shell's `PATH`. Re-run
+  `./scripts/install-mcp.sh` (it now registers with the absolute path to bun)
+  and fully restart Claude Code.
+- **`claude mcp list` doesn't show the server at all** — re-run `./setup.sh`
+  or `./scripts/install-mcp.sh` from inside the repo, then restart Claude Code.
+- **`bun: command not found` from the agent's Bash** — the slash command (and
+  the MCP install script) now find bun at `~/.bun/bin/bun` automatically. If
+  you're on an older install, `git pull` + re-run `./scripts/install-mcp.sh`.
 - **Touch ID prompt cancelled / "user-facing reasons"** — the wallet treats
   Touch ID cancel and "biometry unavailable" as clean rejections. Re-run the
   request, or fall back to `"approver": { "kind": "osascript" }`.
