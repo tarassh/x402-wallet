@@ -5,32 +5,61 @@ argument-hint: [show | wizard | edit | list | balance [label] | help]
 
 The user invoked `/x402-wallet` with arguments: `$ARGUMENTS`
 
-Dispatch by the first argument:
+## How to run wallet commands
 
-## `show` (or no arguments and the user wants a quick summary)
+Claude Code's Bash tool spawns a non-login shell. `bun` is **often not on
+PATH** there (it's typically installed at `~/.bun/bin/bun`, which only
+interactive shells pick up via `~/.zshrc` or `~/.bashrc`). Also: `bun run cli
+…` runs the package script `bun run src/cli/main.ts …`, which re-spawns `bun`
+via PATH and fails the same way.
 
-Run `bun run cli -- config show` via Bash. Pretty-print the JSON in your reply.
+**Always use this exact pattern** for every wallet invocation in this command:
 
-## `list`
+```bash
+BUN="$(command -v bun || true)"
+[ -z "$BUN" ] && [ -x "$HOME/.bun/bin/bun" ] && BUN="$HOME/.bun/bin/bun"
+[ -z "$BUN" ] && [ -x /opt/homebrew/bin/bun ] && BUN=/opt/homebrew/bin/bun
+[ -z "$BUN" ] && [ -x /usr/local/bin/bun ] && BUN=/usr/local/bin/bun
+[ -z "$BUN" ] && { echo "error: bun not found"; exit 1; }
+"$BUN" src/cli/main.ts <subcommand> [args]
+```
 
-Run `bun run cli -- list` via Bash. Show the registered signer labels and addresses.
+The current working directory is assumed to be this repo (so
+`src/cli/main.ts` resolves). If `pwd` reports something else, `cd` to the
+repo first.
 
-## `balance [label] [--chain N]`
+## Dispatch by first argument
 
-If a label was provided, run `bun run cli -- balance <label>` (append `--chain N` if a chain was given).
-If no label was provided, first run `bun run cli -- list` to see the registered labels, then ask the user which one — or, if exactly one signer is registered, just use it.
+### `show` (or no arguments and the user asks for a summary)
 
-## `wizard` (or no arguments at all)
+Run `"$BUN" src/cli/main.ts config show` via Bash. Pretty-print the JSON.
 
-The wizard is an interactive arrow-key TUI. The Bash tool used by the agent does **not** have a real TTY, so the wizard cannot run from the agent. Tell the user verbatim:
+### `list`
 
-> To launch the interactive settings wizard, type this at your prompt (the `!` prefix runs it in your real terminal so the TUI works):
+Run `"$BUN" src/cli/main.ts list`. Show registered signer labels and addresses.
+
+### `balance [label] [--chain N]`
+
+If a label was provided, run `"$BUN" src/cli/main.ts balance <label>` (append
+`--chain N` if a chain was given).
+
+If no label was provided, first run `"$BUN" src/cli/main.ts list`. If exactly
+one signer is registered, use it. Otherwise list the labels and ask the user
+which one.
+
+### `wizard` (or no first argument other than the empty string)
+
+The wizard is an interactive arrow-key TUI and the agent's Bash has no real
+TTY. Tell the user verbatim:
+
+> To launch the interactive settings wizard, type this at your prompt (the
+> `!` prefix runs it in your real terminal so the TUI works):
 >
 > `!bun run cli -- config wizard`
 
-Do **not** try to run `bun run cli -- config wizard` via the Bash tool — it will hang waiting for input.
+Do **not** try to run the wizard via the Bash tool — it will hang.
 
-## `edit`
+### `edit`
 
 Same TTY limitation. Tell the user:
 
@@ -40,7 +69,7 @@ Same TTY limitation. Tell the user:
 
 Do not attempt the Bash tool route.
 
-## `help` (or any unrecognized subcommand)
+### `help` (or any unrecognized subcommand)
 
 Print:
 
@@ -60,5 +89,8 @@ the leading "!" so they run in your shell, not in the agent's sandboxed Bash.
 
 ## Notes
 
-- All `bun run cli` invocations assume the current working directory is this repo (so `package.json` and `src/cli/main.ts` resolve correctly). If Bash reports `bun: command not found` or the script fails because it's running outside the repo, tell the user and stop — don't `cd` to a guessed path.
-- Never modify `~/.config/x402-wallet/config.json` yourself. Mutations belong to the wizard or the editor flow, both of which the user runs explicitly.
+- Never modify `~/.config/x402-wallet/config.json` yourself. Mutations belong
+  to the wizard or the editor flow, both of which the user runs explicitly.
+- If `bun` cannot be found at any of the locations above, do not guess —
+  surface the error and tell the user to install Bun (`curl -fsSL
+  https://bun.sh/install | bash`) and reload their shell.
